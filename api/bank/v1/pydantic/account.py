@@ -22,10 +22,6 @@ class WithdrawRequest(BaseModel):
     amount: float = Field(tag=1)
 
 
-class OverdraftError(BaseModel):
-    amount: float = Field(tag=1)
-
-
 class OpenRequest(BaseModel):
     pass
 
@@ -46,7 +42,6 @@ AccountMethods = Methods(
     withdraw=Writer(
         request=WithdrawRequest,
         response=None,
-        errors=[OverdraftError],
     ),
     open=Writer(
         request=OpenRequest,
