@@ -47,6 +47,8 @@ class BankServicer(Bank.Servicer):
         customer_ids_map = SortedMap.ref(self.state.customer_ids_map_id)
         customer_ids = await customer_ids_map.range(context, limit=32)
 
+        assert isinstance(customer_ids, Message)
+
         return Bank.AllCustomerIdsResponse(
             customer_ids=[
                 entry.value.decode() for entry in customer_ids.entries
@@ -69,9 +71,10 @@ class BankServicer(Bank.Servicer):
         context: TransactionContext,
         request: Bank.OpenCustomerAccountRequest,
     ) -> None:
-        await Customer.ref(
-            request.customer_id
-        ).open_account(context, initial_deposit=request.initial_deposit)
+        await Customer.ref(request.customer_id).open_account(
+            context,
+            initial_deposit=request.initial_deposit,
+        )
 
     async def account_balances(
         self,
@@ -82,13 +85,17 @@ class BankServicer(Bank.Servicer):
         customer_ids_map = SortedMap.ref(self.state.customer_ids_map_id)
         customer_ids = await customer_ids_map.range(context, limit=32)
 
+        assert isinstance(customer_ids, Message)
+
         async def customer_accounts(customer_id: str):
             # We get a Protobuf message back, so we need to convert it
             # to a proper Pydantic type.
             customer_balance = await Customer.ref(
                 customer_id,
             ).balances(context)
+
             assert isinstance(customer_balance, Message)
+
             return CustomerAccounts(
                 customer_id=customer_id,
                 accounts=[

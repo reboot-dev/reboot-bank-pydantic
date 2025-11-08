@@ -3,13 +3,18 @@ import unittest
 from account_servicer import AccountServicer
 from bank.v1.proto.customer_rbt import Customer
 from bank.v1.pydantic.account import BalanceResponse
-from bank.v1.pydantic.account_pb2 import OverdraftError
 from bank.v1.pydantic.account_rbt import Account
+from bank.v1.pydantic.bank import (
+    AccountBalancesResponse,
+    AllCustomerIdsResponse,
+    SignUpRequest,
+    TransferRequest,
+)
 from bank.v1.pydantic.bank_rbt import Bank
 from bank_servicer import BankServicer
 from customer_servicer import CustomerServicer
 from google.protobuf.message import Message
-from pydantic import BaseModel
+from rbt.v1alpha1.errors_pb2 import FailedPrecondition
 from reboot.aio.applications import Application
 from reboot.aio.contexts import WriterContext
 from reboot.aio.tests import Reboot
@@ -60,7 +65,10 @@ class TestBank(unittest.IsolatedAsyncioTestCase):
 
         sign_up_response_1 = await bank.sign_up(
             context,
-            customer_id=CUSTOMER_ID_1,
+            # Show Pydantic model request.
+            SignUpRequest(
+                customer_id=CUSTOMER_ID_1,
+            ),
         )
 
         # Assert that Transaction methods return 'None' as described in
@@ -77,6 +85,7 @@ class TestBank(unittest.IsolatedAsyncioTestCase):
 
         sign_up_response_2 = await bank.sign_up(
             context,
+            # Show field name kwargs request.
             customer_id=CUSTOMER_ID_2,
         )
 
@@ -86,7 +95,7 @@ class TestBank(unittest.IsolatedAsyncioTestCase):
 
         all_customer_ids_response = await bank.all_customer_ids(context)
 
-        assert isinstance(all_customer_ids_response, BaseModel)
+        assert isinstance(all_customer_ids_response, AllCustomerIdsResponse)
 
         open_account_response_2 = await Customer.ref(
             CUSTOMER_ID_2
@@ -98,9 +107,12 @@ class TestBank(unittest.IsolatedAsyncioTestCase):
 
         transfer_response = await bank.transfer(
             context,
-            from_account_id=open_account_response_1.account_id,
-            to_account_id=open_account_response_2.account_id,
-            amount=250.0,
+            # Show Pydantic model request.
+            TransferRequest(
+                from_account_id=open_account_response_1.account_id,
+                to_account_id=open_account_response_2.account_id,
+                amount=250.0,
+            )
         )
 
         # Assert that Transaction methods return 'None' as described in
@@ -111,7 +123,7 @@ class TestBank(unittest.IsolatedAsyncioTestCase):
 
         # Assert that the response is a Pydantic model as described in
         # the Pydantic schema.
-        assert isinstance(account_balances, BaseModel)
+        assert isinstance(account_balances, AccountBalancesResponse)
 
         for account_balance in account_balances.balances:
             if account_balance.customer_id == CUSTOMER_ID_1:
@@ -130,11 +142,11 @@ class TestBank(unittest.IsolatedAsyncioTestCase):
         account_2 = Account.ref(open_account_response_2.account_id)
 
         balance_response_1 = await account_1.balance(context)
-        assert isinstance(balance_response_1, BaseModel)
+        assert isinstance(balance_response_1, BalanceResponse)
         self.assertEqual(balance_response_1.amount, 750.0)
 
         balance_response_2 = await account_2.balance(context)
-        assert isinstance(balance_response_2, BaseModel)
+        assert isinstance(balance_response_2, BalanceResponse)
         self.assertEqual(balance_response_2.amount, 250.0)
 
     async def test_overdraft(self) -> None:
@@ -148,18 +160,17 @@ class TestBank(unittest.IsolatedAsyncioTestCase):
             )
         )
         context = self.rbt.create_external_context(name=f"test-{self.id()}")
-        bank, _ = await Bank.create(context, BANK_ID)
+        await Bank.create(context, BANK_ID)
 
         ACCOUNT_ID = "test-overdraft-account"
         account, _ = await Account.open(context, ACCOUNT_ID)
         try:
             await account.withdraw(context, amount=50.50)
-            raise Exception("Expected OverdraftError to be thrown")
+            raise Exception("Expected FailedPrecondition to be thrown")
         except Account.WithdrawAborted as aborted:
             # For now it is Protobuf, until we have a clear Pydantic
             # story for errors.
-            assert isinstance(aborted.error, OverdraftError)
-            self.assertEqual(aborted.error.amount, 50.50)
+            assert isinstance(aborted.error, FailedPrecondition)
 
     async def test_tasks(self) -> None:
         await self.rbt.up(
@@ -172,12 +183,13 @@ class TestBank(unittest.IsolatedAsyncioTestCase):
             )
         )
         context = self.rbt.create_external_context(name=f"test-{self.id()}")
-        bank, _ = await Bank.create(context, BANK_ID)
+        await Bank.create(context, BANK_ID)
 
         ACCOUNT_ID = "test-overdraft-account"
-        account, _ = await Account.open(context, ACCOUNT_ID)
-        task = await account.spawn().deposit(context, amount=10.0)
 
+        account, _ = await Account.open(context, ACCOUNT_ID)
+
+        task = await account.spawn().deposit(context, amount=10.0)
         response = await task
 
         assert response is None
