@@ -6,10 +6,6 @@ class AccountState(StateModel):
     balance: float = Field(tag=1)
 
 
-class BalanceRequest(BaseModel):
-    pass
-
-
 class BalanceResponse(BaseModel):
     amount: float = Field(tag=1)
 
@@ -22,17 +18,9 @@ class WithdrawRequest(BaseModel):
     amount: float = Field(tag=1)
 
 
-class OpenRequest(BaseModel):
-    pass
-
-
-class InterestRequest(BaseModel):
-    pass
-
-
 AccountMethods = Methods(
     balance=Reader(
-        request=BalanceRequest,
+        request=None,
         response=BalanceResponse,
     ),
     deposit=Writer(
@@ -44,12 +32,12 @@ AccountMethods = Methods(
         response=None,
     ),
     open=Writer(
-        request=OpenRequest,
+        request=None,
         response=None,
         factory=True,
     ),
     interest=Writer(
-        request=InterestRequest,
+        request=None,
         response=None,
     ),
 )
