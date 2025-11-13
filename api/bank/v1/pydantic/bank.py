@@ -14,16 +14,8 @@ class BankState(StateModel):
     customer_ids_map_id: str = Field(tag=1)
 
 
-class CreateRequest(BaseModel):
-    pass
-
-
 class SignUpRequest(BaseModel):
     customer_id: str = Field(tag=1)
-
-
-class AllCustomerIdsRequest(BaseModel):
-    pass
 
 
 class AllCustomerIdsResponse(BaseModel):
@@ -39,10 +31,6 @@ class TransferRequest(BaseModel):
 class OpenCustomerAccountRequest(BaseModel):
     initial_deposit: float = Field(tag=1)
     customer_id: str = Field(tag=2)
-
-
-class AccountBalancesRequest(BaseModel):
-    pass
 
 
 class CustomerAccount(BaseModel):
@@ -61,7 +49,7 @@ class AccountBalancesResponse(BaseModel):
 
 BankMethods = Methods(
     create=Transaction(
-        request=CreateRequest,
+        request=None,
         response=None,
         factory=True,
     ),
@@ -70,7 +58,7 @@ BankMethods = Methods(
         response=None,
     ),
     all_customer_ids=Reader(
-        request=AllCustomerIdsRequest,
+        request=None,
         response=AllCustomerIdsResponse,
     ),
     transfer=Transaction(
@@ -82,7 +70,7 @@ BankMethods = Methods(
         response=None,
     ),
     account_balances=Reader(
-        request=AccountBalancesRequest,
+        request=None,
         response=AccountBalancesResponse,
     ),
 )
