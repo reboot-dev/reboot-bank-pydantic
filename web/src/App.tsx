@@ -1,5 +1,5 @@
 import { ArrowRightLeft, DollarSign, UserPlus, Wallet } from "lucide-react";
-import React, { useState, type FC } from "react";
+import { useState, type FC } from "react";
 import {
   useBank,
   type UseBankApi,
@@ -18,10 +18,10 @@ const Transfer: FC<{ bank: UseBankApi }> = ({ bank }) => {
 
   // Group accounts by customerId.
   const customerAccounts: Record<string, { accountId: string }[]> = {};
-  (response.balances?.elements || []).forEach((balance: any) => {
+  (response.balances || []).forEach((balance: any) => {
     if (!customerAccounts[balance.customerId])
       customerAccounts[balance.customerId] = [];
-    (balance.accounts?.elements || []).forEach((account: any) => {
+    (balance.accounts || []).forEach((account: any) => {
       customerAccounts[balance.customerId].push({
         accountId: account.accountId,
       });
@@ -191,9 +191,9 @@ const CustomersAndAccounts: FC<{
   const [initialDeposit, setInitialDeposit] = useState("");
 
   const { response: allCustomerIdsResponse } = bank.useAllCustomerIds();
-  const customerIds: string[] = (
-    allCustomerIdsResponse?.customerIds?.elements || []
-  ).map((c: any) => c);
+  const customerIds: string[] = (allCustomerIdsResponse?.customerIds || []).map(
+    (c: any) => c
+  );
 
   const handleCreateCustomer = () => {
     bank.signUp({
@@ -361,11 +361,27 @@ const CustomerTableRow: FC<{
 const AccountsTable: FC<{
   bank: UseBankApi;
 }> = ({ bank }) => {
+  // NOTE: this code commented out to show what you would be doing if
+  // you wanted to do a non reactive read!
+  //
+  // const [response, setResponse] = useState<{
+  //   balances: { customerId: string; accounts: { accountId: string; balance: number }[] }[];
+  // }>();
+
+  // useEffect(() => {
+  //   (async () => {
+  //     const { response } = await bank.accountBalances();
+  //     if (response) {
+  //       setResponse(response);
+  //     }
+  //   })();
+  // }, [bank]);
+
   const { response } = bank.useAccountBalances();
 
   if (response == undefined) return <>Loading...</>;
 
-  const balances = response.balances?.elements || [];
+  const { balances } = response;
 
   return (
     <>
@@ -388,32 +404,41 @@ const AccountsTable: FC<{
               </tr>
             </thead>
             <tbody>
-              {balances.map(({ customerId, accounts }) => (
-                <React.Fragment key={customerId}>
-                  <CustomerTableRow customerId={customerId} pending={false} />
-                  {(accounts?.elements || []).map(({ accountId, balance }) => (
-                    <TableRow
-                      key={accountId}
-                      accountId={accountId}
-                      balance={balance}
-                      pending={false}
-                    />
-                  ))}
-                  {bank.openCustomerAccount.pending
-                    .filter(({ request }) => request.customerId === customerId)
-                    .map(({ request, idempotencyKey }) => (
+              {balances.map(
+                ({
+                  customerId,
+                  accounts,
+                }: {
+                  customerId: string;
+                  accounts: { accountId: string; balance: number }[];
+                }) => (
+                  <>
+                    <CustomerTableRow customerId={customerId} pending={false} />
+                    {accounts.map(({ accountId, balance }) => (
                       <TableRow
-                        key={idempotencyKey}
-                        accountId="... pending ..."
-                        balance={request.initialDeposit}
-                        pending={true}
+                        key={accountId}
+                        accountId={accountId}
+                        balance={balance}
+                        pending={false}
                       />
                     ))}
-                </React.Fragment>
-              ))}
+                    {bank.openCustomerAccount.pending
+                      .filter(
+                        ({ request }) => request.customerId === customerId
+                      )
+                      .map(({ request, idempotencyKey }) => (
+                        <TableRow
+                          key={idempotencyKey}
+                          accountId="... pending ..."
+                          balance={request.initialDeposit}
+                          pending={true}
+                        />
+                      ))}
+                  </>
+                )
+              )}
               {bank.signUp.pending.map(({ request }) => (
                 <CustomerTableRow
-                  key={request.customerId}
                   customerId={request.customerId}
                   pending={true}
                 />

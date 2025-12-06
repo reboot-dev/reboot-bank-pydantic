@@ -14,7 +14,6 @@ class AccountServicer(Account.Servicer):
     async def balance(
         self,
         context: ReaderContext,
-        request: Account.BalanceRequest,
     ) -> Account.BalanceResponse:
         return Account.BalanceResponse(amount=self.state.balance)
 
@@ -37,7 +36,6 @@ class AccountServicer(Account.Servicer):
     async def open(
         self,
         context: WriterContext,
-        request: Account.OpenRequest,
     ) -> None:
         self.state.balance = 0.0
         await self.ref().schedule(
@@ -47,7 +45,6 @@ class AccountServicer(Account.Servicer):
     async def interest(
         self,
         context: WriterContext,
-        request: Account.InterestRequest,
     ) -> None:
 
         self.state.balance += 1
