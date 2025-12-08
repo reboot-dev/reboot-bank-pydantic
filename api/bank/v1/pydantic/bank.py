@@ -1,67 +1,46 @@
-from pydantic import BaseModel
-from reboot.api import (
-    API,
-    Field,
-    Methods,
-    Reader,
-    StateModel,
-    Transaction,
-    Type,
-)
+from reboot.api import API, Field, Methods, Model, Reader, Transaction, Type
 
 
-class BankState(StateModel):
+class BankState(Model):
     customer_ids_map_id: str = Field(tag=1)
 
 
-class CreateRequest(BaseModel):
-    pass
-
-
-class SignUpRequest(BaseModel):
+class SignUpRequest(Model):
     customer_id: str = Field(tag=1)
 
 
-class AllCustomerIdsRequest(BaseModel):
-    pass
-
-
-class AllCustomerIdsResponse(BaseModel):
+class AllCustomerIdsResponse(Model):
     customer_ids: list[str] = Field(tag=1)
 
 
-class TransferRequest(BaseModel):
+class TransferRequest(Model):
     from_account_id: str = Field(tag=1)
     to_account_id: str = Field(tag=2)
     amount: float = Field(tag=3)
 
 
-class OpenCustomerAccountRequest(BaseModel):
+class OpenCustomerAccountRequest(Model):
     initial_deposit: float = Field(tag=1)
     customer_id: str = Field(tag=2)
 
 
-class AccountBalancesRequest(BaseModel):
-    pass
-
-
-class CustomerAccount(BaseModel):
+class CustomerAccount(Model):
     account_id: str = Field(tag=1)
     balance: float = Field(tag=2)
 
 
-class CustomerAccounts(BaseModel):
+class CustomerAccounts(Model):
     customer_id: str = Field(tag=1)
     accounts: list[CustomerAccount] = Field(tag=2)
 
 
-class AccountBalancesResponse(BaseModel):
+class AccountBalancesResponse(Model):
     balances: list[CustomerAccounts] = Field(tag=1)
 
 
 BankMethods = Methods(
     create=Transaction(
-        request=CreateRequest,
+        request=None,
         response=None,
         factory=True,
     ),
@@ -70,7 +49,7 @@ BankMethods = Methods(
         response=None,
     ),
     all_customer_ids=Reader(
-        request=AllCustomerIdsRequest,
+        request=None,
         response=AllCustomerIdsResponse,
     ),
     transfer=Transaction(
@@ -82,7 +61,7 @@ BankMethods = Methods(
         response=None,
     ),
     account_balances=Reader(
-        request=AccountBalancesRequest,
+        request=None,
         response=AccountBalancesResponse,
     ),
 )
