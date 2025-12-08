@@ -19,7 +19,6 @@ class BankServicer(Bank.Servicer):
     async def create(
         self,
         context: TransactionContext,
-        request: Bank.CreateRequest,
     ) -> None:
         self.state.customer_ids_map_id = str(uuid.uuid4())
         await SortedMap.ref(self.state.customer_ids_map_id).insert(
@@ -42,7 +41,6 @@ class BankServicer(Bank.Servicer):
     async def all_customer_ids(
         self,
         context: ReaderContext,
-        request: Bank.AllCustomerIdsRequest,
     ) -> Bank.AllCustomerIdsResponse:
         customer_ids_map = SortedMap.ref(self.state.customer_ids_map_id)
         customer_ids = await customer_ids_map.range(context, limit=32)
@@ -79,7 +77,6 @@ class BankServicer(Bank.Servicer):
     async def account_balances(
         self,
         context: ReaderContext,
-        request: Bank.AccountBalancesRequest,
     ) -> Bank.AccountBalancesResponse:
         # Get the first "page" of customer IDs (32 entries).
         customer_ids_map = SortedMap.ref(self.state.customer_ids_map_id)

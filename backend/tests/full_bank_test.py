@@ -1,4 +1,3 @@
-import reboot.std.collections.v1.sorted_map
 import unittest
 from account_servicer import AccountServicer
 from bank.v1.proto.customer_rbt import Customer
@@ -14,20 +13,118 @@ from bank.v1.pydantic.bank_rbt import Bank
 from bank_servicer import BankServicer
 from customer_servicer import CustomerServicer
 from google.protobuf.message import Message
+from rbt.v1alpha1 import errors_pb2
 from rbt.v1alpha1.errors_pb2 import FailedPrecondition
 from reboot.aio.applications import Application
-from reboot.aio.contexts import WriterContext
+from reboot.aio.auth.authorizers import allow, allow_if
+from reboot.aio.contexts import ReaderContext, WriterContext
 from reboot.aio.tests import Reboot
+from reboot.std.collections.v1.sorted_map import sorted_map_library
+from typing import Optional
 
 BANK_ID = 'test-bank'
 
 
-class AccountServicerWithNoInterest(AccountServicer):
+class BankServicerWithAuthorizer(BankServicer):
+
+    def authorizer(self):
+
+        def one_rule_for_all_methods(
+            context: ReaderContext,
+            state: Bank.State,
+            request: Bank.SignUpRequest | Bank.TransferRequest |
+            Bank.OpenCustomerAccountRequest | None,
+            **kwargs,
+        ):
+            # During the constructor method call there is no state.
+            if state is not None:
+                assert isinstance(state, Bank.State)
+
+            # Since it is the only authorizer rule for all methods,
+            # the request can be of different types or None.
+            if request is not None:
+                assert isinstance(
+                    request,
+                    (
+                        Bank.SignUpRequest,
+                        Bank.TransferRequest,
+                        Bank.OpenCustomerAccountRequest,
+                    ),
+                )
+
+            return errors_pb2.Ok()
+
+        return allow_if(all=[one_rule_for_all_methods])
+
+
+class AccountServicerWithNoInterestAndAuthorizer(AccountServicer):
+
+    def authorizer(self):
+
+        def balance_authorizer_rule(
+            context: ReaderContext,
+            state: Account.State,
+            # There is no request for 'balance' method.
+            request: None,
+            **kwargs,
+        ):
+            assert state is not None
+            assert isinstance(state, Account.State)
+            assert request is None
+
+            return errors_pb2.Ok()
+
+        def deposit_authorizer_rule(
+            context: ReaderContext,
+            state: Account.State,
+            request: Account.DepositRequest,
+            **kwargs,
+        ):
+            assert state is not None
+            assert isinstance(state, Account.State)
+            assert request is not None
+            assert isinstance(request, Account.DepositRequest)
+
+            return errors_pb2.Ok()
+
+        def withdraw_authorizer_rule(
+            context: ReaderContext,
+            state: Account.State,
+            request: Account.WithdrawRequest,
+            **kwargs,
+        ):
+            assert state is not None
+            assert isinstance(state, Account.State)
+            assert request is not None
+            assert isinstance(request, Account.WithdrawRequest)
+
+            return errors_pb2.Ok()
+
+        def open_authorizer_rule(
+            context: ReaderContext,
+            state: Optional[Account.State],
+            # There is no request for 'open' method.
+            request: None,
+            **kwargs,
+        ):
+            # 'open' is a constructor method, so state can be None.
+            if state is not None:
+                assert isinstance(state, Account.State)
+            assert request is None
+
+            return errors_pb2.Ok()
+
+        return Account.Authorizer(
+            balance=allow_if(all=[balance_authorizer_rule]),
+            deposit=allow_if(all=[deposit_authorizer_rule]),
+            withdraw=allow_if(all=[withdraw_authorizer_rule]),
+            open=allow_if(all=[open_authorizer_rule]),
+            interest=allow(),
+        )
 
     async def interest(
         self,
         context: WriterContext,
-        request: Account.InterestRequest,
     ) -> None:
         # To avoid flakes remove the interest on the Account,
         # so the balance remains stable during tests.
@@ -47,10 +144,11 @@ class TestBank(unittest.IsolatedAsyncioTestCase):
         await self.rbt.up(
             Application(
                 servicers=[
-                    BankServicer,
-                    AccountServicerWithNoInterest,
+                    BankServicerWithAuthorizer,
+                    AccountServicerWithNoInterestAndAuthorizer,
                     CustomerServicer,
-                ] + reboot.std.collections.v1.sorted_map.servicers(),
+                ],
+                libraries=[sorted_map_library()],
             )
         )
         context = self.rbt.create_external_context(name=f"test-{self.id()}")
@@ -63,17 +161,13 @@ class TestBank(unittest.IsolatedAsyncioTestCase):
         CUSTOMER_ID_1 = "test@reboot.dev"
         CUSTOMER_ID_2 = "test2@reboot.dev"
 
-        sign_up_response_1 = await bank.sign_up(
+        await bank.sign_up(
             context,
             # Show Pydantic model request.
             SignUpRequest(
                 customer_id=CUSTOMER_ID_1,
             ),
         )
-
-        # Assert that Transaction methods return 'None' as described in
-        # Pydantic schema.
-        assert sign_up_response_1 is None
 
         open_account_response_1 = await Customer.ref(
             CUSTOMER_ID_1
@@ -83,15 +177,11 @@ class TestBank(unittest.IsolatedAsyncioTestCase):
         # that the response is a Protobuf message.
         assert isinstance(open_account_response_1, Message)
 
-        sign_up_response_2 = await bank.sign_up(
+        await bank.sign_up(
             context,
             # Show field name kwargs request.
             customer_id=CUSTOMER_ID_2,
         )
-
-        # Assert that Transaction methods return 'None' as described in
-        # Pydantic schema.
-        assert sign_up_response_2 is None
 
         all_customer_ids_response = await bank.all_customer_ids(context)
 
@@ -105,7 +195,7 @@ class TestBank(unittest.IsolatedAsyncioTestCase):
         # that the response is a Protobuf message.
         assert isinstance(open_account_response_2, Message)
 
-        transfer_response = await bank.transfer(
+        await bank.transfer(
             context,
             # Show Pydantic model request.
             TransferRequest(
@@ -114,10 +204,6 @@ class TestBank(unittest.IsolatedAsyncioTestCase):
                 amount=250.0,
             )
         )
-
-        # Assert that Transaction methods return 'None' as described in
-        # Pydantic schema.
-        assert transfer_response is None
 
         account_balances = await bank.account_balances(context)
 
@@ -153,10 +239,11 @@ class TestBank(unittest.IsolatedAsyncioTestCase):
         await self.rbt.up(
             Application(
                 servicers=[
-                    BankServicer,
-                    AccountServicerWithNoInterest,
+                    BankServicerWithAuthorizer,
+                    AccountServicerWithNoInterestAndAuthorizer,
                     CustomerServicer,
-                ] + reboot.std.collections.v1.sorted_map.servicers(),
+                ],
+                libraries=[sorted_map_library()],
             )
         )
         context = self.rbt.create_external_context(name=f"test-{self.id()}")
@@ -176,10 +263,11 @@ class TestBank(unittest.IsolatedAsyncioTestCase):
         await self.rbt.up(
             Application(
                 servicers=[
-                    BankServicer,
-                    AccountServicerWithNoInterest,
+                    BankServicerWithAuthorizer,
+                    AccountServicerWithNoInterestAndAuthorizer,
                     CustomerServicer,
-                ] + reboot.std.collections.v1.sorted_map.servicers(),
+                ],
+                libraries=[sorted_map_library()],
             )
         )
         context = self.rbt.create_external_context(name=f"test-{self.id()}")
@@ -190,9 +278,8 @@ class TestBank(unittest.IsolatedAsyncioTestCase):
         account, _ = await Account.open(context, ACCOUNT_ID)
 
         task = await account.spawn().deposit(context, amount=10.0)
-        response = await task
 
-        assert response is None
+        await task
 
         balance_task = await account.spawn().balance(context)
         balance_response = await balance_task

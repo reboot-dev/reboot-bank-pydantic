@@ -1,38 +1,25 @@
-from pydantic import BaseModel
-from reboot.api import API, Field, Methods, Reader, StateModel, Type, Writer
+from reboot.api import API, Field, Methods, Model, Reader, Type, Writer
 
 
-class AccountState(StateModel):
+class AccountState(Model):
     balance: float = Field(tag=1)
 
 
-class BalanceRequest(BaseModel):
-    pass
-
-
-class BalanceResponse(BaseModel):
+class BalanceResponse(Model):
     amount: float = Field(tag=1)
 
 
-class DepositRequest(BaseModel):
+class DepositRequest(Model):
     amount: float = Field(tag=1)
 
 
-class WithdrawRequest(BaseModel):
+class WithdrawRequest(Model):
     amount: float = Field(tag=1)
-
-
-class OpenRequest(BaseModel):
-    pass
-
-
-class InterestRequest(BaseModel):
-    pass
 
 
 AccountMethods = Methods(
     balance=Reader(
-        request=BalanceRequest,
+        request=None,
         response=BalanceResponse,
     ),
     deposit=Writer(
@@ -43,13 +30,14 @@ AccountMethods = Methods(
         request=WithdrawRequest,
         response=None,
     ),
+    # Must use this method to create an instance of Account.
     open=Writer(
-        request=OpenRequest,
+        request=None,
         response=None,
         factory=True,
     ),
     interest=Writer(
-        request=InterestRequest,
+        request=None,
         response=None,
     ),
 )
