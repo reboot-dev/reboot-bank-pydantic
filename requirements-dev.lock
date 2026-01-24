@@ -11,7 +11,7 @@ aiofiles==23.2.1
     # via reboot
 aiohappyeyeballs==2.6.1
     # via aiohttp
-aiohttp==3.10.5
+aiohttp==3.13.2
     # via kubernetes-asyncio
     # via reboot
 aiosignal==1.4.0
@@ -24,6 +24,8 @@ async-timeout==4.0.3
     # via aiohttp
 attrs==25.4.0
     # via aiohttp
+bitarray==3.8.0
+    # via reboot
 certifi==2025.10.5
     # via kubernetes-asyncio
 cffi==1.17.1
@@ -136,6 +138,7 @@ pathspec==0.12.1
 pluggy==1.6.0
     # via pytest
 propcache==0.4.0
+    # via aiohttp
     # via yarl
 protobuf==5.28.3
     # via googleapis-common-protos
@@ -167,7 +170,7 @@ python-dateutil==2.9.0.post0
 pyyaml==6.0.2
     # via kubernetes-asyncio
     # via reboot
-reboot==0.43.0
+reboot==0.44.0
 setuptools==80.9.0
     # via grpcio-tools
 six==1.17.0
