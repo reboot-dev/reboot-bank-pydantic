@@ -1,7 +1,7 @@
 import random
+from bank.v1.pydantic.account import OverdraftError
 from bank.v1.pydantic.account_rbt import Account
 from datetime import timedelta
-from rbt.v1alpha1.errors_pb2 import FailedPrecondition
 from reboot.aio.auth.authorizers import allow
 from reboot.aio.contexts import ReaderContext, WriterContext
 
@@ -31,7 +31,9 @@ class AccountServicer(Account.Servicer):
     ) -> None:
         self.state.balance -= request.amount
         if self.state.balance < 0:
-            raise Account.WithdrawAborted(FailedPrecondition())
+            raise Account.WithdrawAborted(
+                OverdraftError(amount=-self.state.balance)
+            )
 
     async def open(
         self,

@@ -1,7 +1,7 @@
 import unittest
 from account_servicer import AccountServicer
 from bank.v1.proto.customer_rbt import Customer
-from bank.v1.pydantic.account import BalanceResponse
+from bank.v1.pydantic.account import BalanceResponse, OverdraftError
 from bank.v1.pydantic.account_rbt import Account
 from bank.v1.pydantic.bank import (
     AccountBalancesResponse,
@@ -14,7 +14,6 @@ from bank_servicer import BankServicer
 from customer_servicer import CustomerServicer
 from google.protobuf.message import Message
 from rbt.v1alpha1 import errors_pb2
-from rbt.v1alpha1.errors_pb2 import FailedPrecondition
 from reboot.aio.applications import Application
 from reboot.aio.auth.authorizers import allow, allow_if
 from reboot.aio.contexts import ReaderContext, WriterContext
@@ -253,11 +252,10 @@ class TestBank(unittest.IsolatedAsyncioTestCase):
         account, _ = await Account.open(context, ACCOUNT_ID)
         try:
             await account.withdraw(context, amount=50.50)
-            raise Exception("Expected FailedPrecondition to be thrown")
+            raise Exception("Expected `OverdraftError` to be thrown")
         except Account.WithdrawAborted as aborted:
-            # For now it is Protobuf, until we have a clear Pydantic
-            # story for errors.
-            assert isinstance(aborted.error, FailedPrecondition)
+            assert isinstance(aborted.error, OverdraftError)
+            self.assertEqual(aborted.error.amount, 50.50)
 
     async def test_tasks(self) -> None:
         await self.rbt.up(

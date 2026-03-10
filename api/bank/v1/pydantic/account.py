@@ -17,6 +17,10 @@ class WithdrawRequest(Model):
     amount: float = Field(tag=1)
 
 
+class OverdraftError(Model):
+    amount: float = Field(tag=1)
+
+
 AccountMethods = Methods(
     balance=Reader(
         request=None,
@@ -29,6 +33,7 @@ AccountMethods = Methods(
     withdraw=Writer(
         request=WithdrawRequest,
         response=None,
+        errors=[OverdraftError],
     ),
     # Must use this method to create an instance of Account.
     open=Writer(
