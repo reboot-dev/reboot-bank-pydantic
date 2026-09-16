@@ -1,5 +1,6 @@
 from reboot.api import (
     API,
+    Exclusive,
     Field,
     Methods,
     Model,
@@ -11,7 +12,12 @@ from reboot.api import (
 
 
 class CustomerState(Model):
-    account_ids: list[str] = Field(tag=1, default_factory=list)
+    account_ids: list[str] = Field(
+        tag=1,
+        default_factory=list,
+        description="The ids of the customer's accounts, in the order "
+        "they were opened.",
+    )
 
 
 class OpenAccountRequest(Model):
@@ -41,6 +47,7 @@ CustomerMethods = Methods(
         mcp=None,
     ),
     open_account=Transaction(
+        mode=Exclusive(),
         request=OpenAccountRequest,
         response=OpenAccountResponse,
         description="Open an account for this customer with an "
