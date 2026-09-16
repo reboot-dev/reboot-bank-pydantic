@@ -23,7 +23,7 @@ check_lines_in_file() {
 if [ -n "$REBOOT_WHL_FILE" ]; then
   # Install the `reboot` package from the specified path explicitly, over-
   # writing the version from `pyproject.toml`.
-  uv add --no-sync "${SANDBOX_ROOT}$REBOOT_WHL_FILE"
+  uv add --no-sync "reboot[dev] @ ${SANDBOX_ROOT}$REBOOT_WHL_FILE"
 fi
 
 # Force a fresh virtualenv. A pre-existing `.venv/` (e.g., carried
@@ -46,9 +46,11 @@ RBT_FLAGS="--state-directory=$(mktemp -d)"
 
 rbt $RBT_FLAGS generate
 
-mypy backend/
+mypy backend/ tests/
 
-pytest backend/
+# The web app's scenarios need its npm dependencies and a browser,
+# which this script does not install.
+pytest --ignore=tests/web_test.py
 
 if [ -n "$EXPECTED_RBT_DEV_OUTPUT_FILE" ]; then
   actual_output_file=$(mktemp)

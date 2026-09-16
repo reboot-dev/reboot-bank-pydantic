@@ -4,6 +4,7 @@ from reboot.api import (
     Methods,
     Model,
     Reader,
+    Shared,
     Tool,
     Transaction,
     Type,
@@ -41,6 +42,7 @@ api = API(
         state=UserState,
         methods=Methods(
             open_account=Transaction(
+                mode=Shared(),
                 request=OpenAccountRequest,
                 response=OpenAccountResponse,
                 description="Open a new account for the signed-in "
